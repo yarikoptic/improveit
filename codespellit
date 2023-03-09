@@ -46,7 +46,7 @@ EOF
 git add .github/workflows/codespell.yml
 git commit -m "Add github action to codespell $branch on push and PRs"
 
-skips=.git,*.pdf,*.svg
+skips=".git,*.pdf,*.svg"
 for d in venv .venv venvs .tox versioneer.py package-lock.json; do
     if [ -e "$d" ]; then
         skips+=",$d"
