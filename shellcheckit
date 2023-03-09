@@ -14,7 +14,7 @@ if [ -e .github/workflows/shellcheck.yml ]; then
     echo ".github/workflows/shellcheck.yml already exists -- we must be good"
     exit 0
 fi
-source $(readlink -f $0 | xargs dirname)/common.sh
+source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 git checkout -b enh-shellcheck
 
