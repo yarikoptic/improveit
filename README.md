@@ -1,8 +1,17 @@
 # improveit
 
 Trivial helpers to setup and run codespell or shellcheck'ing  for a GitHub project.
-Both are just script in the top directory ATM, place them into your PATH for convenience
-or just invoke with full path.
+
+- `shellcheckit` -- add shellcheck workflow
+- `codespellit` -- add codespell workflow, and config
+- `prit` -- submit PR in your fork
+
+All are just script in the top directory ATM, place them into your PATH for convenience
+or just invoke with full path, e.g.
+
+    cd /root/of/project/git
+    shellcheckit  # to generate remote clone, add remote, commit workflow
+    prit  # send a PR
 
 **Disclaimer: they are ad-hoc and ugly, but work!  Use at your own risk and/or pleasure.**
 
