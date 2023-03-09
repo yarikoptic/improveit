@@ -1,27 +1,11 @@
 #!/bin/bash
 
 set -eu
-branch=$(git rev-parse --abbrev-ref HEAD)
-ghuser=$(git config github.user)
-ghremote=gh-${ghuser:-mine}
-
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-    # if not available -- load from config possibly
-    GITHUB_TOKEN=$(git config hub.oauthtoken)
-fi
-
-if ! git remote | grep "$ghremote"; then
-   if ! GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
-    echo "errored out, sleeping, trying to fetch"
-    sleep 2
-    git fetch "$ghremote"
-   fi
-fi
+source $(readlink -f $0 | xargs dirname)/common.sh
 
 git checkout -b enh-codespell
 
 # do workflow first since straightforward
-mkdir -p .github/workflows
 cat > .github/workflows/codespell.yml << EOF
 ---
 name: Codespell
