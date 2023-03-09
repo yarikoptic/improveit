@@ -1,3 +1,6 @@
+# shellcheck shell=sh
+
+# shellcheck disable=SC2034
 branch=$(git rev-parse --abbrev-ref HEAD)
 ghuser=$(git config github.user)
 ghremote=gh-${ghuser:-mine}
