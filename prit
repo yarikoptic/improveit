@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Taken from my own bash config, just dumped here
+# Helper to send a PR, just specify which remote to send through,
+# If None specified - will use the one as gh-$(git config github.user).
+set -eu
+
+ghsendpr () {
+	r="${1:-}"
+    if [ -z "$r" ]; then
+        r="gh-$(git config github.user)"
+    fi
+	br=$(git branch --no-color | awk '/^\*/{print $2;}') 
+	if [ "$br" = 'master' ]
+	then
+		echo "You are on the master branch. Which branch should I push to?"
+		read brpr
+		echo "Ok -- will push to $br"
+	else
+		brpr=$br 
+	fi
+	if [ "$br" != "" ]
+	then
+		git push -u $r $br:$brpr
+		rpushurl=$(git remote show -n $r | awk '/^ *Push  URL/{print $3;}') 
+		lr=$(echo $rpushurl | sed -e 's,.*github.com[:/]\(.*\)/\(.*\),\1/\2,' | sed -e 's/\.git$//g') 
+		newprurl="http://github.com/${lr}/pull/new/$brpr" 
+		echo "opening browser for $newprurl"
+		x-www-browser $newprurl
+	fi
+}
+
+ghsendpr "$@"
