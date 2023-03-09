@@ -3,23 +3,29 @@
 set -eu
 
 # needs to be specific to not include zsh and some people do odd /usr/bin/env bash things
-SHEBANG_REGEX='^#!\(/bin/\|/usr/bin/env \)\(sh\|bash\|dash\|ksh\)'
+SHEBANG_REGEX='^#\( *shellcheck \|!\(/bin/\|/usr/bin/env \)\(sh\|bash\|dash\|ksh\)\)'
+WORKFLOW=.github/workflows/shellcheck.yml
 
 if ! git grep "$SHEBANG_REGEX"; then
     echo "No shell scripts found, no need"
     exit 0
 fi
 
-if [ -e .github/workflows/shellcheck.yml ]; then
-    echo ".github/workflows/shellcheck.yml already exists -- we must be good"
-    exit 0
-fi
-source $(readlink -f $0 | xargs dirname)/common.sh
+source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
-git checkout -b enh-shellcheck
+function doit() {
+	git grep -l "$SHEBANG_REGEX" | xargs shellcheck
+}
 
-# do workflow first since straightforward
-cat > .github/workflows/shellcheck.yml << EOF
+function generate_workflow() {
+	# we might need to overload branch if we already have it and just updating
+	if [ -e "$WORKFLOW" ]; then
+		branch_=$(sed -n -e '/branches:/s,.*\[\(.*\)\].*,\1,gp' "$WORKFLOW" | uniq)
+		if [ -n "$branch_" ]; then
+			branch="$branch_"
+		fi
+	fi
+	cat > "$WORKFLOW" << EOF
 ---
 name: Shellcheck
 
@@ -40,13 +46,27 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y shellcheck
-
-    - name: shellcheck
-      run: |
-        git grep -l '$SHEBANG_REGEX' | xargs shellcheck 
+      - name: shellcheck
+        run: |
+          git grep -l '$SHEBANG_REGEX' | xargs shellcheck 
 EOF
-git add .github/workflows/shellcheck.yml
+}
+
+# poor man shortcuts for just doing it using the regex etc
+case "${1:-}" in
+	doit) doit; exit $?;;
+	generate_workflow) generate_workflow; exit $?;;
+esac
+
+if [ -e "$WORKFLOW" ]; then
+    echo "$WORKFLOW already exists -- we must be good"
+    exit 0
+fi
+
+git checkout -b enh-shellcheck
+
+git add "$WORKFLOW"
 git commit -m "Add github action to shellcheck $branch on push and PRs"
 
 
-git grep -l "$SHEBANG_REGEX" | xargs shellcheck
+doit
