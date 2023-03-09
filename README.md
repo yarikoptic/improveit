@@ -1,6 +1,12 @@
-# codespellit
+# improveit
 
-A trivial helper to setup and run codespell'ing  for a GitHub project.
+Trivial helpers to setup and run codespell or shellcheck'ing  for a GitHub project.
+Both are just script in the top directory ATM, place them into your PATH for convenience
+or just invoke with full path.
+
+**Disclaimer: they are ad-hoc and ugly, but work!  Use at your own risk and/or pleasure.**
+
+Improvement or proper reimplementation PRs are welcome.
 
 It relies on two config vars being set in your global `~/.gitconfig` (pardon
 for historical inconsistency), optionally:
