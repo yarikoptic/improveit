@@ -7,9 +7,9 @@ set -eu
 
 ghsendpr () {
 	r="${1:-}"
-    if [ -z "$r" ]; then
-        r="gh-$(git config github.user)"
-    fi
+	if [ -z "$r" ]; then
+		r="gh-$(git config github.user)"
+	fi
 	br=$(git branch --no-color | awk '/^\*/{print $2;}')
 	if [ "$br" = 'master' ]
 	then
