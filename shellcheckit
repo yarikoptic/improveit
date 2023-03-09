@@ -40,10 +40,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y shellcheck
-
-    - name: shellcheck
-      run: |
-        git grep -l '$SHEBANG_REGEX' | xargs shellcheck 
+      - name: shellcheck
+        run: |
+          git grep -l '$SHEBANG_REGEX' | xargs shellcheck 
 EOF
 git add .github/workflows/shellcheck.yml
 git commit -m "Add github action to shellcheck $branch on push and PRs"
