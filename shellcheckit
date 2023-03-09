@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -eu
+
+# needs to be specific to not include zsh and some people do odd /usr/bin/env bash things
+SHEBANG_REGEX='^#!\(/bin/\|/usr/bin/env \)\(sh\|bash\|dash\|ksh\)'
+
+if ! git grep "$SHEBANG_REGEX"; then
+    echo "No shell scripts found, no need"
+    exit 0
+fi
+
+if [ -e .github/workflows/shellcheck.yml ]; then
+    echo ".github/workflows/shellcheck.yml already exists -- we must be good"
+    exit 0
+fi
+source $(readlink -f $0 | xargs dirname)/common.sh
+
+git checkout -b enh-shellcheck
+
+# do workflow first since straightforward
+cat > .github/workflows/shellcheck.yml << EOF
+---
+name: Shellcheck
+
+on:
+  push:
+    branches: [$branch]
+  pull_request:
+    branches: [$branch]
+
+jobs:
+  shellcheck:
+    name: Check shell scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt install -y shellcheck
+
+    - name: shellcheck
+      run: |
+        git grep -l '$SHEBANG_REGEX' | xargs shellcheck 
+EOF
+git add .github/workflows/shellcheck.yml
+git commit -m "Add github action to shellcheck $branch on push and PRs"
+
+
+git grep -l "$SHEBANG_REGEX" | xargs shellcheck
