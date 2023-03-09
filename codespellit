@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -eu
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if ! git remote | grep gh-yarikoptic; then
+   if ! GH_TOKEN=$(git config hub.oauthtoken) gh repo fork --remote --remote-name gh-yarikoptic; then
+    echo "errored out, sleeping, trying to fetch"
+    sleep 2
+    git fetch gh-yarikoptic
+   fi
+fi
+
+git checkout -b enh-codespell
+
+# do workflow first since straightforward
+mkdir -p .github/workflows
+cat > .github/workflows/codespell.yml << EOF
+---
+name: Codespell
+
+on:
+  push:
+    branches: [$branch]
+  pull_request:
+    branches: [$branch]
+
+jobs:
+  codespell:
+    name: Check for spelling errors
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Codespell
+        uses: codespell-project/actions-codespell@v1
+EOF
+git add .github/workflows/codespell.yml
+git commit -m "Add github action to codespell $branch on push and PRs"
+
+skips=.git,*.pdf,*.svg
+for d in venv .venv venvs .tox versioneer.py package-lock.json; do
+    if [ -e "$d" ]; then
+        skips+=",$d"
+    fi
+done
+
+# Then config file as the "last" commit we can amend if needed
+cat > .codespellrc <<EOF
+[codespell]
+skip = $skips
+# ignore-words-list = 
+EOF
+
+git add .codespellrc
+git commit -m 'Add rudimentary .codespellrc' .codespellrc
+
+codespell || {
+echo
+echo "Problematic?:"
+echo
+codespell | grep ','
+}
