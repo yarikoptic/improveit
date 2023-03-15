@@ -14,7 +14,7 @@ fi
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 function doit() {
-	git grep -l "$SHEBANG_REGEX" | xargs shellcheck
+	git grep -l "$SHEBANG_REGEX" | xargs shellcheck "$@"
 }
 
 function generate_workflow() {
@@ -54,7 +54,7 @@ EOF
 
 # poor man shortcuts for just doing it using the regex etc
 case "${1:-}" in
-	doit) doit; exit $?;;
+	doit) shift; doit "$@"; exit $?;;
 	generate_workflow) generate_workflow; exit $?;;
 esac
 
@@ -65,6 +65,7 @@ fi
 
 git checkout -b enh-shellcheck
 
+generate_workflow
 git add "$WORKFLOW"
 git commit -m "Add github action to shellcheck $branch on push and PRs"
 
