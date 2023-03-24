@@ -14,7 +14,7 @@ fi
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 function doit() {
-	git grep -l "$SHEBANG_REGEX" | xargs shellcheck "$@"
+	git grep -l "$SHEBANG_REGEX" | grep -v '\.\(txt\|md\)' | xargs shellcheck "$@"
 }
 
 function generate_workflow() {
