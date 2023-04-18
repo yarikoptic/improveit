@@ -5,8 +5,9 @@ source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 git checkout -b enh-codespell
 
-# do workflow first since straightforward
-cat > .github/workflows/codespell.yml << EOF
+if [ -e .github ]; then
+    # do workflow first since straightforward
+    cat > .github/workflows/codespell.yml << EOF
 ---
 name: Codespell
 
@@ -27,8 +28,11 @@ jobs:
       - name: Codespell
         uses: codespell-project/actions-codespell@v1
 EOF
-git add .github/workflows/codespell.yml
-git commit -m "Add github action to codespell $branch on push and PRs"
+    git add .github/workflows/codespell.yml
+    git commit -m "Add github action to codespell $branch on push and PRs"
+else
+    echo "No .github directory, no workflow provided"   
+fi
 
 skips=".git,*.pdf,*.svg"
 for d in venv .venv venvs .tox versioneer.py package-lock.json; do
