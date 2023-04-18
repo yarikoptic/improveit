@@ -3,6 +3,8 @@
 set -eu
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
+codespell_version=$(codespell --version | sed -e 's,\.dev.*,,g')
+
 git checkout -b enh-codespell
 
 if [ -e .github ]; then
@@ -64,6 +66,26 @@ fi
 echo "Config in $config"
 git add "$config"
 git commit -m 'Add rudimentary codespell config' "$config"
+
+if [ -e .pre-commit-config.yaml ]; then
+	# add pre-commit configuration there
+	cat >> .pre-commit-config.yaml <<EOF
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v${codespell_version}
+  hooks:
+  - id: codespell
+EOF
+
+	if [ "$config" = "pyproject.toml" ]; then
+		cat >> .pre-commit-config.yaml <<EOF
+    additional_dependencies:
+      - tomli
+EOF
+	fi
+	git add .pre-commit-config.yaml
+	git commit -m 'Add pre-commit definition for codespell'
+fi
 
 codespell || {
 echo
