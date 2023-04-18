@@ -41,15 +41,29 @@ for d in venv .venv venvs .tox versioneer.py package-lock.json; do
     fi
 done
 
-# Then config file as the "last" commit we can amend if needed
-cat > .codespellrc <<EOF
+if [ -e pyproject.toml ]; then
+	config="pyproject.toml"
+	cat >> pyproject.toml <<EOF
+
+[tool.codespell]
+skip = '$skips'
+#
+# ignore-words-list = ''
+EOF
+else
+	config=".codespellrc"
+	# Then config file as the "last" commit we can amend if needed
+	cat > .codespellrc <<EOF
 [codespell]
 skip = $skips
+# 
 # ignore-words-list = 
 EOF
+fi
 
-git add .codespellrc
-git commit -m 'Add rudimentary .codespellrc' .codespellrc
+echo "Config in $config"
+git add "$config"
+git commit -m 'Add rudimentary codespell config' "$config"
 
 codespell || {
 echo
