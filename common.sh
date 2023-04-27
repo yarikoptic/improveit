@@ -20,6 +20,5 @@ if git fetch -v 2>&1 | grep -q github.com; then
     fi
     mkdir -p .github/workflows
 else
-    echo "Remote does not point to github, fork youself"
+    echo "Remote does not point to github, fork yourself"
 fi
-

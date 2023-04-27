@@ -33,7 +33,7 @@ EOF
     git add .github/workflows/codespell.yml
     git commit -m "Add github action to codespell $branch on push and PRs"
 else
-    echo "No .github directory, no workflow provided"   
+    echo "No .github directory, no workflow provided"
 fi
 
 skips=".git,*.pdf,*.svg"
@@ -58,8 +58,8 @@ else
 	cat > .codespellrc <<EOF
 [codespell]
 skip = $skips
-# 
-# ignore-words-list = 
+#
+# ignore-words-list =
 EOF
 fi
 
