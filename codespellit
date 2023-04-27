@@ -4,18 +4,18 @@ set -eu
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 codespell_version_full=$(codespell --version)
-codespell_version=$(echo $codespell_version_full | sed -e 's,\.dev.*,,g')
+codespell_version=${codespell_version_full//.dev$/}
 
-if [[ "$codespell_version_full" =~ ".dev" ]]; then
+if [[ "$codespell_version_full" =~ \.dev ]]; then
 	# for the action we
-	codespell_version=`
-		git -C $(python -c 'import codespell_lib as l; print(l.__path__[0])') describe --tags --match 'v[0-9]*' | sed -e 's,-.*,,g' -e 's,^v,,g'
-	`
+	codespell_dir=$(python -c 'import codespell_lib as l; print(l.__path__[0])')
+	codespell_version=$(
+		git -C "$codespell_dir" describe --tags --match 'v[0-9]*' | sed -e 's,-.*,,g' -e 's,^v,,g'
+	)
 	echo "WARNING! Running development version $codespell_version_full."
 	echo "         For the action etc we will mention tagged version $codespell_version".
 fi
 
-exit 1
 git checkout -b enh-codespell
 
 if [ -e .github ]; then
