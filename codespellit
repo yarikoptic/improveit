@@ -39,7 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Codespell
-        uses: codespell-project/actions-codespell@v1
+        uses: codespell-project/actions-codespell@v2
 EOF
     git add .github/workflows/codespell.yml
     git commit -m "Add github action to codespell $branch on push and PRs"
