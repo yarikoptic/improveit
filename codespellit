@@ -18,39 +18,6 @@ fi
 
 git checkout -b enh-codespell
 
-skips=".git,*.pdf,*.svg"
-for d in venv .venv venvs .tox versioneer.py package-lock.json; do
-    if [ -e "$d" ]; then
-        skips+=",$d"
-    fi
-done
-
-if [ -e pyproject.toml ]; then
-	config="pyproject.toml"
-    actionv="master"
-	cat >> pyproject.toml <<EOF
-
-[tool.codespell]
-skip = '$skips'
-#
-# ignore-words-list = ''
-EOF
-else
-	config=".codespellrc"
-    actionv="v1"
-	# Then config file as the "last" commit we can amend if needed
-	cat > .codespellrc <<EOF
-[codespell]
-skip = $skips
-#
-# ignore-words-list =
-EOF
-fi
-
-echo "Config in $config"
-git add "$config"
-git commit -m 'Add rudimentary codespell config' "$config"
-
 if [ -e .github ]; then
     # do workflow first since straightforward
     cat > .github/workflows/codespell.yml << EOF
@@ -72,7 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Codespell
-        uses: codespell-project/actions-codespell@$actionv
+        uses: codespell-project/actions-codespell@v1
 EOF
     git add .github/workflows/codespell.yml
     git commit -m "Add github action to codespell $branch on push and PRs"
@@ -80,6 +47,36 @@ else
     echo "No .github directory, no workflow provided"
 fi
 
+skips=".git,*.pdf,*.svg"
+for d in venv .venv venvs .tox versioneer.py package-lock.json; do
+    if [ -e "$d" ]; then
+        skips+=",$d"
+    fi
+done
+
+if [ -e pyproject.toml ]; then
+	config="pyproject.toml"
+	cat >> pyproject.toml <<EOF
+
+[tool.codespell]
+skip = '$skips'
+#
+# ignore-words-list = ''
+EOF
+else
+	config=".codespellrc"
+	# Then config file as the "last" commit we can amend if needed
+	cat > .codespellrc <<EOF
+[codespell]
+skip = $skips
+#
+# ignore-words-list =
+EOF
+fi
+
+echo "Config in $config"
+git add "$config"
+git commit -m 'Add rudimentary codespell config' "$config"
 
 if [ -e .pre-commit-config.yaml ]; then
 	# add pre-commit configuration there
