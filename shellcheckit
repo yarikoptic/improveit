@@ -35,6 +35,9 @@ on:
   pull_request:
     branches: [$branch]
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
     name: Check shell scripts
