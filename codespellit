@@ -59,10 +59,16 @@ for d in venv .venv venvs .tox versioneer.py package-lock.json *.lock; do
     fi
 done
 
-# TODO: for .ipynb add
-# /home/yoh/proj/misc/NeuromatchAcademy-course-content/.codespellrc has even more advanced ones
-#  ignore-regex = '^\s*"image/\S+": ".*'
-#
+ignore_regex=''
+if find . -iname '*.ipynb' -print -quit | grep -q .; then
+  ignore_regex='^\s*"image/\S+": ".*'
+fi
+
+ignore_regex_prefix=''
+if [ -z "$ignore_regex" ]; then
+    ignore_regex_prefix="# "
+fi
+
 if [ -e pyproject.toml ]; then
 	config="pyproject.toml"
 	cat >> pyproject.toml <<EOF
@@ -70,8 +76,7 @@ if [ -e pyproject.toml ]; then
 [tool.codespell]
 skip = '$skips'
 check-hidden = True
-#
-# ignore-regex = ''
+${ignore_regex_prefix}ignore-regex = '$ignore_regex'
 # ignore-words-list = ''
 EOF
 else
@@ -82,7 +87,7 @@ else
 [codespell]
 skip = $skips
 check-hidden = true
-# ignore-regex =
+${ignore_regex_prefix}ignore-regex = $ignore_regex
 # ignore-words-list =
 EOF
 fi
