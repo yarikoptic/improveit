@@ -1,4 +1,6 @@
 #!/bin/bash
+#emacs: -*- mode: shell-script; c-basic-offset: 4; tab-width: 4; indent-tabs-mode: nil -*-
+#ex: set sts=4 ts=4 sw=4 et:
 
 set -eu
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
@@ -51,28 +53,36 @@ else
 fi
 
 skips=".git,*.pdf,*.svg"
-for d in venv .venv venvs .tox versioneer.py package-lock.json; do
+for d in venv .venv venvs .tox versioneer.py package-lock.json *.lock; do
     if [ -e "$d" ]; then
         skips+=",$d"
     fi
 done
 
+# TODO: for .ipynb add
+# /home/yoh/proj/misc/NeuromatchAcademy-course-content/.codespellrc has even more advanced ones
+#  ignore-regex = '^\s*"image/\S+": ".*'
+#
 if [ -e pyproject.toml ]; then
 	config="pyproject.toml"
 	cat >> pyproject.toml <<EOF
 
 [tool.codespell]
 skip = '$skips'
+check-hidden = True
 #
+# ignore-regex = ''
 # ignore-words-list = ''
 EOF
 else
-	config=".codespellrc"
-	# Then config file as the "last" commit we can amend if needed
-	cat > .codespellrc <<EOF
+    config=".codespellrc"
+    skips+=",$config"  # for check-hidden
+    # Then config file as the "last" commit we can amend if needed
+    cat > .codespellrc <<EOF
 [codespell]
 skip = $skips
-#
+check-hidden = true
+# ignore-regex =
 # ignore-words-list =
 EOF
 fi
@@ -82,8 +92,8 @@ git add "$config"
 git commit -m 'Add rudimentary codespell config' "$config"
 
 if [ -e .pre-commit-config.yaml ]; then
-	# add pre-commit configuration there
-	cat >> .pre-commit-config.yaml <<EOF
+    # add pre-commit configuration there
+    cat >> .pre-commit-config.yaml <<EOF
 
 - repo: https://github.com/codespell-project/codespell
   rev: v${codespell_version}
@@ -91,14 +101,14 @@ if [ -e .pre-commit-config.yaml ]; then
   - id: codespell
 EOF
 
-	if [ "$config" = "pyproject.toml" ]; then
-		cat >> .pre-commit-config.yaml <<EOF
+    if [ "$config" = "pyproject.toml" ]; then
+        cat >> .pre-commit-config.yaml <<EOF
     additional_dependencies:
-      - tomli
+    - tomli
 EOF
-	fi
-	git add .pre-commit-config.yaml
-	git commit -m 'Add pre-commit definition for codespell'
+    fi
+    git add .pre-commit-config.yaml
+    git commit -m 'Add pre-commit definition for codespell'
 fi
 
 codespell || {

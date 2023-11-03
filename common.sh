@@ -10,8 +10,9 @@ if [ -z "${GITHUB_TOKEN:-}" ]; then
     GITHUB_TOKEN=$(git config hub.oauthtoken)
 fi
 
-if git fetch -v 2>&1 | grep -q github.com; then
-    if ! git remote | grep "$ghremote"; then
+# by grep on github.com/ we would skip ssh ones
+if git fetch -v 2>&1 | grep -q github.com/; then
+    if ! git remote | grep "$ghremote" ; then
        if ! GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
         echo "errored out, sleeping, trying to fetch"
         sleep 2
