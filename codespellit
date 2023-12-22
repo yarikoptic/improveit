@@ -20,9 +20,52 @@ fi
 
 git checkout -b enh-codespell
 
+skips=".git,*.pdf,*.svg,go.sum"
+for f in venv .venv venvs .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*.niml' '*.gii'; do
+    if find . -iname "$f" -print -quit | grep -q .; then
+        skips+=",$f"
+    fi
+done
+
+ignore_regex=''
+if find . -iname '*.ipynb' -print -quit | grep -q .; then
+  ignore_regex='^\s*"image/\S+": ".*'
+fi
+
+ignore_regex_prefix=''
+if [ -z "$ignore_regex" ]; then
+    ignore_regex_prefix="# "
+fi
+
+if [ -e pyproject.toml ]; then
+	config="pyproject.toml"
+	cat >> pyproject.toml <<EOF
+
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+[tool.codespell]
+skip = '$skips'
+check-hidden = true
+${ignore_regex_prefix}ignore-regex = '$ignore_regex'
+# ignore-words-list = ''
+EOF
+else
+    config=".codespellrc"
+    skips+=",$config"  # for check-hidden
+    # Then config file as the "last" commit we can amend if needed
+    cat > .codespellrc <<EOF
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+[codespell]
+skip = $skips
+check-hidden = true
+${ignore_regex_prefix}ignore-regex = $ignore_regex
+# ignore-words-list =
+EOF
+fi
+
 if [ -e .github ]; then
-    # do workflow first since straightforward
+    mkdir -p .github/workflows
     cat > .github/workflows/codespell.yml << EOF
+# Codespell configuration is within $config
 ---
 name: Codespell
 
@@ -52,54 +95,17 @@ else
     echo "No .github directory, no workflow provided"
 fi
 
-skips=".git,*.pdf,*.svg"
-for f in venv .venv venvs .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*.niml'; do
-    if find . -iname "$f" -print -quit | grep -q .; then
-        skips+=",$f"
-    fi
-done
-
-ignore_regex=''
-if find . -iname '*.ipynb' -print -quit | grep -q .; then
-  ignore_regex='^\s*"image/\S+": ".*'
-fi
-
-ignore_regex_prefix=''
-if [ -z "$ignore_regex" ]; then
-    ignore_regex_prefix="# "
-fi
-
-if [ -e pyproject.toml ]; then
-	config="pyproject.toml"
-	cat >> pyproject.toml <<EOF
-
-[tool.codespell]
-skip = '$skips'
-check-hidden = True
-${ignore_regex_prefix}ignore-regex = '$ignore_regex'
-# ignore-words-list = ''
-EOF
-else
-    config=".codespellrc"
-    skips+=",$config"  # for check-hidden
-    # Then config file as the "last" commit we can amend if needed
-    cat > .codespellrc <<EOF
-[codespell]
-skip = $skips
-check-hidden = true
-${ignore_regex_prefix}ignore-regex = $ignore_regex
-# ignore-words-list =
-EOF
-fi
 
 echo "Config in $config"
 git add "$config"
-git commit -m 'Add rudimentary codespell config' "$config"
+# --no-verify since we might have trailing spaces which could trip some linters
+git commit -m 'Add rudimentary codespell config' --no-verify "$config"
 
 if [ -e .pre-commit-config.yaml ]; then
     # add pre-commit configuration there
     cat >> .pre-commit-config.yaml <<EOF
 
+# Configuration for codespell is in $config
 - repo: https://github.com/codespell-project/codespell
   rev: v${codespell_version}
   hooks:
