@@ -13,8 +13,12 @@ fi
 
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
+function list() {
+	git grep -l "$SHEBANG_REGEX" | grep -v '\.\(txt\|md\)'
+}
+
 function doit() {
-	git grep -l "$SHEBANG_REGEX" | grep -v '\.\(txt\|md\)' | xargs shellcheck "$@"
+	list | xargs shellcheck "$@"
 }
 
 function generate_workflow() {
@@ -57,6 +61,7 @@ EOF
 
 # poor man shortcuts for just doing it using the regex etc
 case "${1:-}" in
+	list) shift; list "$@"; exit $?;;
 	doit) shift; doit "$@"; exit $?;;
 	generate_workflow) generate_workflow; exit $?;;
 esac
