@@ -18,6 +18,46 @@ if [[ "$codespell_version_full" =~ \.dev ]]; then
 	echo "         For the action etc we will mention tagged version $codespell_version".
 fi
 
+
+function list() {
+    codespell "$@" || {
+        echo
+        echo "Problematic?:"
+        echo
+        codespell "$@" | grep ','
+    }
+}
+
+function list-hits-sorted() {
+    codespell "$@" | grep -e '==>' | sed -e 's,.*: *,,g' | sort | uniq -c | sort -n
+}
+
+# given filtered output from list-hits-sorted, apply those which were left
+function fix-sorted() {  # shellcheck disable=SC2120
+    if ! git diff-index --quiet HEAD --; then
+        echo "Repository is dirty. Please commit your changes first."
+        exit 1
+    fi
+
+    nfixes=$(cat "$@" | grep -e '==>' -c )
+    cat "$@" | grep -e '==>' | while read -r _ fr _ to; do
+        git grep -l "\<$fr\>" | xargs sed -i -e "s,\<$fr\>,$to,g"
+    done
+
+    git commit -m "Fix $nfixes typos found by codespell
+
+Here are typos with their counts and introduced fix:
+
+$(grep -e '==>' "$@")
+" -a
+}
+
+# poor man shortcuts for just doing it using the regex etc
+cmd="${1:-}"
+case "$cmd" in
+    list|list-hits-sorted|fix-sorted) shift; "$cmd" "$@"; exit $?;;
+esac
+
 git checkout -b enh-codespell
 
 skips=".git,*.pdf,*.svg,go.sum"
@@ -122,9 +162,4 @@ EOF
     git commit -m 'Add pre-commit definition for codespell'
 fi
 
-codespell || {
-echo
-echo "Problematic?:"
-echo
-codespell | grep ','
-}
+list "$@"
