@@ -81,8 +81,8 @@ if [ -e pyproject.toml ]; then
 	config="pyproject.toml"
 	cat >> pyproject.toml <<EOF
 
-# Ref: https://github.com/codespell-project/codespell#using-a-config-file
 [tool.codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
 skip = '$skips'
 check-hidden = true
 ${ignore_regex_prefix}ignore-regex = '$ignore_regex'
@@ -93,8 +93,8 @@ else
     skips+=",$config"  # for check-hidden
     # Then config file as the "last" commit we can amend if needed
     cat > .codespellrc <<EOF
-# Ref: https://github.com/codespell-project/codespell#using-a-config-file
 [codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
 skip = $skips
 check-hidden = true
 ${ignore_regex_prefix}ignore-regex = $ignore_regex
