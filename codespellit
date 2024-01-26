@@ -88,6 +88,18 @@ check-hidden = true
 ${ignore_regex_prefix}ignore-regex = '$ignore_regex'
 # ignore-words-list = ''
 EOF
+elif [ -e setup.cfg ]; then
+    config="setup.cfg"
+    # Then config file as the "last" commit we can amend if needed
+    cat >> setup.cfg <<EOF
+
+[codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+skip = $skips
+check-hidden = true
+${ignore_regex_prefix}ignore-regex = $ignore_regex
+# ignore-words-list =
+EOF
 else
     config=".codespellrc"
     skips+=",$config"  # for check-hidden
