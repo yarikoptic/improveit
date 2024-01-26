@@ -41,7 +41,7 @@ function fix-sorted() {  # shellcheck disable=SC2120
 
     nfixes=$(cat "$@" | grep -e '==>' -c )
     cat "$@" | grep -e '==>' | while read -r _ fr _ to; do
-        git grep -l "\<$fr\>" | xargs sed -i -e "s,\<$fr\>,$to,g"
+        git grep -l "\<$fr\>" | tr '\n' '\000' | xargs -0 sed -i -e "s,\<$fr\>,$to,g"
     done
 
     git commit -m "Fix $nfixes typos found by codespell
@@ -60,8 +60,8 @@ esac
 
 git checkout -b enh-codespell
 
-skips=".git,*.pdf,*.svg,go.sum"
-for f in venv .venv venvs .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*.niml' '*.gii'; do
+skips=".git"
+for f in '*.pdf' '*.svg' go.sum venv .venv venvs .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*.niml' '*.gii'; do
     if find . -iname "$f" -print -quit | grep -q .; then
         skips+=",$f"
     fi
@@ -125,7 +125,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Codespell
         uses: codespell-project/actions-codespell@v2
 EOF
