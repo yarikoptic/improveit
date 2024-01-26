@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt update && sudo apt install -y shellcheck
@@ -76,6 +76,20 @@ git checkout -b enh-shellcheck
 generate_workflow
 git add "$WORKFLOW"
 git commit -m "Add github action to shellcheck $branch on push and PRs"
+
+if [ -e .pre-commit-config.yaml ]; then
+    # add pre-commit configuration there
+    cat >> .pre-commit-config.yaml <<EOF
+
+- repo: https://github.com/koalaman/shellcheck-precommit
+  rev: v0.9.0
+  hooks:
+  - id: shellcheck
+EOF
+
+    git add .pre-commit-config.yaml
+    git commit -m 'Add pre-commit definition for shellcheck'
+fi
 
 
 doit
