@@ -61,7 +61,7 @@ esac
 git checkout -b enh-codespell
 
 skips=".git"
-for f in '*.pdf' '*.svg' go.sum venv .venv venvs .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*.niml' '*.gii'; do
+for f in '*.pdf' '*.svg' go.sum venv .venv venvs locale .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*-min.*' '*.pack.js' '*.niml' '*.gii'; do
     if find . -iname "$f" -print -quit | grep -q .; then
         skips+=",$f"
     fi
