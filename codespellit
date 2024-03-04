@@ -157,8 +157,8 @@ if [ -e .pre-commit-config.yaml ]; then
     # add pre-commit configuration there
     cat >> .pre-commit-config.yaml <<EOF
 
-# Configuration for codespell is in $config
 - repo: https://github.com/codespell-project/codespell
+  # Configuration for codespell is in $config
   rev: v${codespell_version}
   hooks:
   - id: codespell
@@ -172,6 +172,11 @@ EOF
     fi
     git add .pre-commit-config.yaml
     git commit -m 'Add pre-commit definition for codespell'
+
+    if ! python -c 'import yaml; yaml.safe_load(open(".pre-commit-config.yaml"))'; then
+        echo "ERROR: added pre-commit definition ruined the yaml format, fix and rerun '!0 list'"
+        exit 1
+    fi
 fi
 
 list "$@"
