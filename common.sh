@@ -12,7 +12,7 @@ fi
 
 # by grep on github.com/ we would skip ssh ones
 if git fetch -v 2>&1 | grep -q github.com/; then
-    if ! git remote | grep "$ghremote" ; then
+    if ! git remote | grep -q "$ghremote" ; then
        if ! GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
         echo "errored out, sleeping, trying to fetch"
         sleep 2
@@ -21,5 +21,5 @@ if git fetch -v 2>&1 | grep -q github.com/; then
     fi
     mkdir -p .github/workflows
 else
-    echo "Remote does not point to github, fork yourself"
+    echo "Remote does not point to github, fork yourself" >&2
 fi
