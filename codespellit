@@ -18,6 +18,53 @@ if [[ "$codespell_version_full" =~ \.dev ]]; then
 	echo "         For the action etc we will mention tagged version $codespell_version".
 fi
 
+function deduce-config() {
+    # deduce where we have that config
+    if [ -e ".codespellrc" ]; then
+        echo .codespellrc
+    elif grep -q '^\[tool.codespell\]' pyproject.toml; then
+        echo pyproject.toml
+    elif grep -q '^\[codespell\]' setup.cfg; then
+        echo setup.cfg
+    else
+        echo "ERROR: Cannot figure out where codespell config is" >&2
+    fi
+}
+
+function add-precommit() {
+    if [ "$#" -ge 1 ]; then
+        config="$1"
+    else
+        config=$(deduce-config)
+    fi
+    if [ -e .pre-commit-config.yaml ]; then
+        # add pre-commit configuration there
+        cat >> .pre-commit-config.yaml <<EOF
+
+- repo: https://github.com/codespell-project/codespell
+  # Configuration for codespell is in $config
+  rev: v${codespell_version}
+  hooks:
+  - id: codespell
+EOF
+
+        if [ "$config" = "pyproject.toml" ]; then
+            cat >> .pre-commit-config.yaml <<EOF
+    additional_dependencies:
+    - tomli
+EOF
+        fi
+        git add .pre-commit-config.yaml
+        git commit -m 'Add pre-commit definition for codespell'
+
+        if ! python -c 'import yaml; yaml.safe_load(open(".pre-commit-config.yaml"))'; then
+            echo "ERROR: added pre-commit definition ruined the yaml format, fix and rerun '!0 list'"
+            exit 1
+        fi
+    else
+        echo "No .pre-commit-config.yaml was found, nothing changed"
+    fi
+}
 
 function list() {
     codespell "$@" || {
@@ -55,13 +102,13 @@ $(grep -e '==>' "$@")
 # poor man shortcuts for just doing it using the regex etc
 cmd="${1:-}"
 case "$cmd" in
-    list|list-hits-sorted|fix-sorted) shift; "$cmd" "$@"; exit $?;;
+    list|list-hits-sorted|fix-sorted|deduce-config|add-precommit) shift; "$cmd" "$@"; exit $?;;
 esac
 
 git checkout -b enh-codespell
 
-skips=".git"
-for f in '*.pdf' '*.svg' go.sum venv .venv venvs locale .tox versioneer.py package-lock.json '*.lock' '*.css' '*.min.*' '*-min.*' '*.pack.js' '*.niml' '*.gii'; do
+skips=".git*"
+for f in '*.pdf' '*.svg' go.sum venv .venv venvs locale .tox versioneer.py package-lock.json vendor i18n '*-lock.yaml' '*.lock' '*.css' '*.min.*' '*-min.*' '*.pack.js' '*.niml' '*.gii'; do
     if find . -iname "$f" -print -quit | grep -q .; then
         skips+=",$f"
     fi
@@ -138,6 +185,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Annotate locations with typos
+        uses: codespell-project/codespell-problem-matcher@v1
       - name: Codespell
         uses: codespell-project/actions-codespell@v2
 EOF
@@ -153,30 +202,5 @@ git add "$config"
 # --no-verify since we might have trailing spaces which could trip some linters
 git commit -m 'Add rudimentary codespell config' --no-verify "$config"
 
-if [ -e .pre-commit-config.yaml ]; then
-    # add pre-commit configuration there
-    cat >> .pre-commit-config.yaml <<EOF
-
-- repo: https://github.com/codespell-project/codespell
-  # Configuration for codespell is in $config
-  rev: v${codespell_version}
-  hooks:
-  - id: codespell
-EOF
-
-    if [ "$config" = "pyproject.toml" ]; then
-        cat >> .pre-commit-config.yaml <<EOF
-    additional_dependencies:
-    - tomli
-EOF
-    fi
-    git add .pre-commit-config.yaml
-    git commit -m 'Add pre-commit definition for codespell'
-
-    if ! python -c 'import yaml; yaml.safe_load(open(".pre-commit-config.yaml"))'; then
-        echo "ERROR: added pre-commit definition ruined the yaml format, fix and rerun '!0 list'"
-        exit 1
-    fi
-fi
-
+add-precommit "$config"
 list "$@"
