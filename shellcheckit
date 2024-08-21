@@ -21,6 +21,10 @@ function doit() {
 	list | xargs shellcheck "$@"
 }
 
+function autopatch() {
+    list | xargs shellcheck -f diff | patch -p1
+}
+
 function generate_workflow() {
 	# we might need to overload branch if we already have it and just updating
 	if [ -e "$WORKFLOW" ]; then
@@ -63,6 +67,7 @@ EOF
 case "${1:-}" in
 	list) shift; list "$@"; exit $?;;
 	doit) shift; doit "$@"; exit $?;;
+	autopatch) shift; autopatch "$@"; exit $?;;
 	generate_workflow) generate_workflow; exit $?;;
 esac
 
