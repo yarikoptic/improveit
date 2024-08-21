@@ -22,9 +22,9 @@ function deduce-config() {
     # deduce where we have that config
     if [ -e ".codespellrc" ]; then
         echo .codespellrc
-    elif grep -q '^\[tool.codespell\]' pyproject.toml; then
+    elif grep -q '^\[tool.codespell\]' pyproject.toml 2>|/dev/null; then
         echo pyproject.toml
-    elif grep -q '^\[codespell\]' setup.cfg; then
+    elif grep -q '^\[codespell\]' setup.cfg 2>|/dev/null; then
         echo setup.cfg
     else
         echo "ERROR: Cannot figure out where codespell config is" >&2
