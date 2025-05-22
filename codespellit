@@ -79,7 +79,7 @@ EOF
         if [ "$config" = "pyproject.toml" ]; then
             cat >> .pre-commit-config.yaml <<EOF
     additional_dependencies:
-    - tomli  # for python_version < '3.11'
+    - tomli; python_version<'3.11'
 EOF
         fi
         git add .pre-commit-config.yaml
