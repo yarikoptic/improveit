@@ -3,6 +3,29 @@
 #ex: set sts=4 ts=4 sw=4 et:
 
 set -eu
+
+# poor man shortcuts for just doing it using the regex etc
+cmd="${1:-}"
+
+#
+# Early action command -- falls through
+#
+case "$cmd" in
+    clone) shift;
+        # strip trailing /
+        url=${1%%/}
+        shift
+        d=${url##*/}
+        git clone --filter=blob:none "$url" "$d"
+        cd "$d"
+        # shellcheck disable=SC2064
+        trap "echo \"I: clone is under '$d'\"" SIGINT SIGHUP SIGABRT EXIT
+    ;;
+esac
+
+#
+# For the rest first do common thing
+#
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 codespell_version_full=$(codespell --version)
@@ -38,8 +61,13 @@ function add-precommit() {
         config=$(deduce-config)
     fi
     if [ -e .pre-commit-config.yaml ]; then
+        # check if may be already one
+        check_if_defined_in_config .pre-commit-config.yaml
         # add pre-commit configuration there
-        cat >> .pre-commit-config.yaml <<EOF
+        indent=$(grep -e '- repo:' .pre-commit-config.yaml | tail -n 1 | sed -e 's,- repo.*,,g')
+        # ignoring error below since I believe this worked as desired
+        # shellcheck disable=SC2259
+        cat | sed -e "s,^,$indent,g" >> .pre-commit-config.yaml <<EOF
 
 - repo: https://github.com/codespell-project/codespell
   # Configuration for codespell is in $config
@@ -51,7 +79,7 @@ EOF
         if [ "$config" = "pyproject.toml" ]; then
             cat >> .pre-commit-config.yaml <<EOF
     additional_dependencies:
-    - tomli
+    - tomli  # for python_version < '3.11'
 EOF
         fi
         git add .pre-commit-config.yaml
@@ -99,16 +127,40 @@ $(grep -e '==>' "$@")
 " -a
 }
 
+function datalad-run-w() {
+    datalad run -m "chore: run codespell throughout fixing few left typos automagically" 'codespell -w'
+}
+
+function datalad-run-w-i() {
+    datalad run -m "chore: do interactive fixing of some ambiguous typos" codespell -w -i 3 -C 2
+}
+
+function send-pr() {
+    gh repo set-default "$(git config remote.origin.url)" \
+    && gh pr create -t "Add codespell support (config, workflow to detect/not fix) and make it fix few typos" -b "More about codespell: https://github.com/codespell-project/codespell .
+
+I personally introduced it to dozens if not hundreds of projects already and so far only positive feedback.
+
+CI workflow has 'permissions' set only to 'read' so also should be safe." -w
+}
+
+function check_if_defined_in_config() {
+    config="$1"
+    if grep -q -E '\<codespell\>' "$config"; then
+        echo "E: codespell seems already known to $config" >&2
+        exit 2
+    fi
+}
+
 # poor man shortcuts for just doing it using the regex etc
-cmd="${1:-}"
 case "$cmd" in
-    list|list-hits-sorted|fix-sorted|deduce-config|add-precommit) shift; "$cmd" "$@"; exit $?;;
+    list|list-hits-sorted|fix-sorted|deduce-config|add-precommit|datalad-run-w|datalad-run-w-i|send-pr) shift; "$cmd" "$@"; exit $?;;
 esac
 
 git checkout -b enh-codespell
 
 skips=".git*"
-for f in '*.pdf' '*.svg' go.sum venv .venv venvs locale .tox versioneer.py package-lock.json vendor i18n '*-lock.yaml' '*.lock' '*.css' '*.min.*' '*-min.*' '*.pack.js' '*.niml' '*.gii'; do
+for f in '*.pdf' '*.svg' '*.ai' go.sum venv .venv venvs locale .tox versioneer.py package-lock.json vendor i18n '*-lock.yaml' '*.lock' '*.css' '*.min.*' '*-min.*' '*.pack.js' '*.niml' '*.gii'; do
     if find . -iname "$f" -print -quit | grep -q .; then
         skips+=",$f"
     fi
@@ -126,6 +178,7 @@ fi
 
 if [ -e pyproject.toml ]; then
 	config="pyproject.toml"
+    check_if_defined_in_config "$config";
 	cat >> pyproject.toml <<EOF
 
 [tool.codespell]
@@ -203,4 +256,17 @@ git add "$config"
 git commit -m 'Add rudimentary codespell config' --no-verify "$config"
 
 add-precommit "$config"
-list "$@"
+list "$@" || :
+#if ! list "$@"; then
+#    echo "Nothing todo, exiting"
+#    exit 0
+#else
+#    echo "There are fixes TODO!"
+#fi
+
+commit_pre=$(git show-ref -s HEAD)
+datalad-run-w || { git diff --color-words; exit 1; }
+datalad-run-w-i
+git diff --color-words "$commit_pre"..HEAD
+
+send-pr
