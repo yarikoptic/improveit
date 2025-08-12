@@ -14,7 +14,12 @@ fi
 source "$(readlink -f "$0" | xargs dirname)/common.sh"
 
 function list() {
-	git grep -l "$SHEBANG_REGEX" | grep -v '\.\(txt\|md\)'
+	# git grep -l "$SHEBANG_REGEX" | grep -v '\.\(txt\|md\)'
+    # custom way to grep only the first line
+    git grep -n "$SHEBANG_REGEX" \
+    | grep ':1:#' \
+    | sed -e 's,:.*,,g' \
+	| grep -v '\.\(txt\|md\)'
 }
 
 function doit() {
