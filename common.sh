@@ -5,18 +5,20 @@ branch=$(git rev-parse --abbrev-ref HEAD)
 ghuser=$(git config github.user)
 ghremote=gh-${ghuser:-mine}
 
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-    # if not available -- load from config possibly
-    GITHUB_TOKEN=$(git config hub.oauthtoken)
-fi
+
+# Just rely on gh being authenticated
+#if [ -z "${GITHUB_TOKEN:-}" ]; then
+#    # if not available -- load from config possibly
+#    GITHUB_TOKEN=$(git config hub.oauthtoken)
+#fi
 
 # by grep on github.com/ we would skip ssh ones
 if git fetch -v 2>&1 | grep -q github.com/; then
     if ! git remote | grep -q "$ghremote" ; then
-       if GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
+       if gh repo fork --remote --remote-name "$ghremote"; then
         # disable actions in the fork -- we just want to provide contributions upstream
         fork_repo=$(git remote get-url "$ghremote" | sed -e 's|.*github.com[:/]||' -e 's|\.git$||')
-        GH_TOKEN="$GITHUB_TOKEN" gh api -X PUT "repos/$fork_repo/actions/permissions" -F enabled=false || \
+        gh api -X PUT "repos/$fork_repo/actions/permissions" -F enabled=false || \
             echo "WARNING: Failed to disable actions on fork $fork_repo" >&2
        else
         echo "errored out, sleeping, trying to fetch"

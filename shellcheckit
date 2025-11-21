@@ -38,6 +38,7 @@ function generate_workflow() {
 			branch="$branch_"
 		fi
 	fi
+    mkdir -p "$(dirname "$WORKFLOW")"
 	cat > "$WORKFLOW" << EOF
 ---
 name: Shellcheck
