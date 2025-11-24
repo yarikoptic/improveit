@@ -15,7 +15,7 @@ if git fetch -v 2>&1 | grep -q github.com/; then
     if ! git remote | grep -q "$ghremote" ; then
        if GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
         # disable actions in the fork -- we just want to provide contributions upstream
-        fork_repo=$(git remote get-url "$ghremote" | sed -e 's,.*github.com[:/],,; s,\.git$,,')
+        fork_repo=$(git remote get-url "$ghremote" | sed -e 's|.*github.com[:/]||' -e 's|\.git$||')
         GH_TOKEN="$GITHUB_TOKEN" gh api -X PUT "repos/$fork_repo/actions/permissions" -F enabled=false || \
             echo "WARNING: Failed to disable actions on fork $fork_repo" >&2
        else
