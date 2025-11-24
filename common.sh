@@ -13,7 +13,12 @@ fi
 # by grep on github.com/ we would skip ssh ones
 if git fetch -v 2>&1 | grep -q github.com/; then
     if ! git remote | grep -q "$ghremote" ; then
-       if ! GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
+       if GH_TOKEN="$GITHUB_TOKEN" gh repo fork --remote --remote-name "$ghremote"; then
+        # disable actions in the fork -- we just want to provide contributions upstream
+        repo_name=$(basename "$(git remote get-url origin)" .git)
+        GH_TOKEN="$GITHUB_TOKEN" gh api -X PUT "repos/$ghuser/$repo_name/actions/permissions" -F enabled=false || \
+            echo "WARNING: Failed to disable actions on fork $ghuser/$repo_name" >&2
+       else
         echo "errored out, sleeping, trying to fetch"
         sleep 2
         git fetch "$ghremote"
