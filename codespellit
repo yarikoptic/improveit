@@ -41,6 +41,100 @@ if [[ "$codespell_version_full" =~ \.dev ]]; then
 	echo "         For the action etc we will mention tagged version $codespell_version".
 fi
 
+function detect-platform() {
+    # Detect hosting platform from git remotes
+    # Sets: platform ("github", "codeberg", "forgejo", "unknown")
+    #       remote_prefix ("gh-" for github, "cb-" for codeberg)
+    local remote_url
+    remote_url=$(git config remote.origin.url 2>/dev/null || echo "")
+    if [[ "$remote_url" == *github.com* ]]; then
+        echo "github"
+    elif [[ "$remote_url" == *codeberg.org* ]]; then
+        echo "codeberg"
+    elif [[ "$remote_url" == *forgejo* ]] || [ -d .forgejo ]; then
+        echo "forgejo"
+    else
+        echo "unknown"
+    fi
+}
+
+function setup-fork-remote() {
+    # Set up a fork remote for pushing when user doesn't have push access to origin
+    local platform
+    platform=$(detect-platform)
+    case "$platform" in
+        github)
+            local gh_user
+            gh_user=$(gh api user -q .login 2>/dev/null || echo "")
+            if [ -z "$gh_user" ]; then
+                echo "E: Cannot determine GitHub user. Run 'gh auth login' first." >&2
+                return 1
+            fi
+            local remote_name="gh-${gh_user}"
+            if ! git remote get-url "$remote_name" &>/dev/null; then
+                local origin_url
+                origin_url=$(git config remote.origin.url)
+                local repo_path
+                repo_path=$(echo "$origin_url" | sed -E 's,.*/([^/]+/[^/]+?)(\.git)?$,\1,')
+                # Fork if needed
+                gh repo fork --remote=false 2>/dev/null || true
+                local fork_url
+                fork_url=$(echo "$origin_url" | sed -E "s,(/[^/]+)/([^/]+)$,/${gh_user}/\2,")
+                git remote add "$remote_name" "$fork_url"
+                echo "I: Added remote $remote_name -> $fork_url"
+            fi
+            echo "$remote_name"
+            ;;
+        codeberg)
+            local cb_user
+            # tea login ls -o json has fields: name, url, ssh_host, user, default
+            cb_user=$(tea login ls -o json 2>/dev/null \
+                | python3 -c 'import sys,json; L=json.load(sys.stdin); print(L[0]["user"])' 2>/dev/null || echo "")
+            if [ -z "$cb_user" ]; then
+                echo "E: Cannot determine Codeberg user. Run 'tea login add --url https://codeberg.org' first." >&2
+                return 1
+            fi
+            local remote_name="cb-${cb_user}"
+            if ! git remote get-url "$remote_name" &>/dev/null; then
+                local origin_url repo_path fork_url
+                origin_url=$(git config remote.origin.url)
+                # Extract org/repo from URL (handles both https and ssh)
+                repo_path=$(echo "$origin_url" | sed -E 's,.*/([^/]+/[^/]+?)(\.git)?$,\1,')
+                # Fork via Codeberg API (tea repo fork tries SSH unnecessarily)
+                # Extract token from tea config
+                local cb_token
+                cb_token=$(python3 -c "
+import yaml, os
+p = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config')) + '/tea/config.yml'
+with open(p) as f:
+    cfg = yaml.safe_load(f)
+for l in cfg.get('logins', []):
+    if 'codeberg' in l.get('url', ''):
+        print(l.get('token', '')); break
+" 2>/dev/null || echo "")
+                echo "I: Forking $repo_path on Codeberg..." >&2
+                if [ -n "$cb_token" ]; then
+                    curl -sf -X POST \
+                        -H "Authorization: token $cb_token" \
+                        "https://codeberg.org/api/v1/repos/${repo_path}/forks" \
+                        -H "Content-Type: application/json" \
+                        -d '{}' >/dev/null 2>&1 || echo "W: Fork may already exist (OK)" >&2
+                else
+                    echo "W: Could not read tea token. Fork manually at https://codeberg.org/${repo_path}/fork" >&2
+                fi
+                # Replace org with user: handle both https and ssh URLs
+                fork_url=$(echo "$origin_url" | sed -E "s,(/[^/]+)/([^/]+)$,/${cb_user}/\2,")
+                git remote add "$remote_name" "$fork_url"
+                echo "I: Added remote $remote_name -> $fork_url" >&2
+            fi
+            echo "$remote_name"
+            ;;
+        *)
+            echo "origin"
+            ;;
+    esac
+}
+
 function deduce-config() {
     # deduce where we have that config
     if [ -e ".codespellrc" ]; then
@@ -136,12 +230,51 @@ function datalad-run-w-i() {
 }
 
 function send-pr() {
-    gh repo set-default "$(git config remote.origin.url)" \
-    && gh pr create -t "Add codespell support (config, workflow to detect/not fix) and make it fix few typos" -b "More about codespell: https://github.com/codespell-project/codespell .
+    local platform pr_title pr_body push_remote
+    platform=$(detect-platform)
+    pr_title="Add codespell support (config, workflow to detect/not fix) and make it fix few typos"
+    pr_body="More about codespell: https://github.com/codespell-project/codespell .
 
 I personally introduced it to dozens if not hundreds of projects already and so far only positive feedback.
 
-CI workflow has 'permissions' set only to 'read' so also should be safe." -w
+CI workflow has 'permissions' set only to 'read' so also should be safe."
+
+    if [ -e .git/pr-description.md ]; then
+        pr_body=$(cat .git/pr-description.md)
+    fi
+
+    case "$platform" in
+        github)
+            push_remote=$(setup-fork-remote)
+            git push -u "$push_remote" "$(git branch --show-current)"
+            gh repo set-default "$(git config remote.origin.url)" \
+            && gh pr create -t "$pr_title" -b "$pr_body" -w
+            ;;
+        codeberg)
+            push_remote=$(setup-fork-remote)
+            local branch_name
+            branch_name=$(git branch --show-current)
+            git push -u "$push_remote" "$branch_name"
+            local origin_url repo_path cb_user_
+            origin_url=$(git config remote.origin.url)
+            repo_path=$(echo "$origin_url" | sed -E 's,.*/([^/]+/[^/]+?)(\.git)?$,\1,')
+            cb_user_=${push_remote#cb-}
+            # Open compare URL in browser — lets user review/edit before submitting
+            local pr_url="https://codeberg.org/${repo_path}/compare/master...${cb_user_}:${branch_name}"
+            echo "Opening PR creation page in browser..." >&2
+            echo "PR description is in .git/pr-description.md — paste it into the form." >&2
+            xdg-open "$pr_url" 2>/dev/null || open "$pr_url" 2>/dev/null || {
+                echo "Open manually: $pr_url" >&2
+            }
+            ;;
+        *)
+            echo "W: Unknown platform, attempting GitHub-style PR creation" >&2
+            push_remote=$(setup-fork-remote)
+            git push -u "$push_remote" "$(git branch --show-current)"
+            gh repo set-default "$(git config remote.origin.url)" \
+            && gh pr create -t "$pr_title" -b "$pr_body" -w
+            ;;
+    esac
 }
 
 function check_if_defined_in_config() {
@@ -154,7 +287,7 @@ function check_if_defined_in_config() {
 
 # poor man shortcuts for just doing it using the regex etc
 case "$cmd" in
-    list|list-hits-sorted|fix-sorted|deduce-config|add-precommit|datalad-run-w|datalad-run-w-i|send-pr) shift; "$cmd" "$@"; exit $?;;
+    list|list-hits-sorted|fix-sorted|deduce-config|add-precommit|datalad-run-w|datalad-run-w-i|send-pr|detect-platform|setup-fork-remote) shift; "$cmd" "$@"; exit $?;;
 esac
 
 git checkout -b enh-codespell
@@ -214,7 +347,11 @@ ${ignore_regex_prefix}ignore-regex = $ignore_regex
 EOF
 fi
 
-if [ -e .github ]; then
+platform=$(detect-platform)
+workflow_added=false
+
+# GitHub Actions workflow
+if [ -e .github ] || [ "$platform" = "github" ]; then
     mkdir -p .github/workflows
     cat > .github/workflows/codespell.yml << EOF
 # Codespell configuration is within $config
@@ -242,9 +379,43 @@ jobs:
         uses: codespell-project/actions-codespell@v2
 EOF
     git add .github/workflows/codespell.yml
-    git commit -m "Add github action to codespell $branch on push and PRs"
-else
-    echo "No .github directory, no workflow provided"
+    git commit -m "Add GitHub Actions workflow for codespell on $branch"
+    workflow_added=true
+fi
+
+# Forgejo Actions workflow (Codeberg and other Forgejo instances)
+if [ -e .forgejo ] || [ "$platform" = "codeberg" ] || [ "$platform" = "forgejo" ]; then
+    mkdir -p .forgejo/workflows
+    cat > .forgejo/workflows/codespell.yml << EOF
+# Codespell configuration is within $config
+---
+name: Codespell
+
+on:
+  push:
+    branches: [$branch]
+  pull_request:
+    branches: [$branch]
+
+jobs:
+  codespell:
+    name: Check for spelling errors
+    runs-on: docker
+    container:
+      image: ghcr.io/codespell-project/actions-codespell/master:latest
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Codespell
+        run: codespell .
+EOF
+    git add .forgejo/workflows/codespell.yml
+    git commit -m "Add Forgejo Actions workflow for codespell on $branch"
+    workflow_added=true
+fi
+
+if [ "$workflow_added" = "false" ]; then
+    echo "No .github or .forgejo directory and unknown platform, no workflow provided"
 fi
 
 
