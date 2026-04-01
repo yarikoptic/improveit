@@ -376,7 +376,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Codespell
-        uses: codespell-project/actions-codespell@v2
+        uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579  # v2.2
 EOF
     git add .github/workflows/codespell.yml
     git commit -m "Add GitHub Actions workflow for codespell on $branch"
