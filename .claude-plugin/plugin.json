@@ -1,0 +1,6 @@
+{
+  "name": "improveit",
+  "version": "0.1.0",
+  "description": "Add codespell and shellcheck support to any project",
+  "author": "Yaroslav Halchenko"
+}
