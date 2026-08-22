@@ -1,3 +1,5 @@
+
+
 # improveit
 
 Trivial helpers to setup and run codespell or shellcheck'ing  for a GitHub project.
@@ -7,7 +9,7 @@ Trivial helpers to setup and run codespell or shellcheck'ing  for a GitHub proje
 - [`shellcheckit`](./shellcheckit) -- add [shellcheck](https://www.shellcheck.net/) workflow
 - [`prit`](./prit) -- submit PR in your fork
 
-All are just script in the top directory ATM, place them into your PATH for convenience
+All are just script in the top directory ATM (along with a shared `common.sh` helper), place them into your PATH for convenience
 or just invoke with full path, e.g.
 
     cd /root/of/project/git
